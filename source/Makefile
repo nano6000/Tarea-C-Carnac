@@ -19,4 +19,4 @@ clean:
 
 .PHONY: run debug compile
 
-all: clean compile run
+all: compile run
