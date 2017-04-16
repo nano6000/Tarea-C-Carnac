@@ -6,12 +6,22 @@
 #define WIDTH 1000.0
 #define HEIGHT 600.0
 
+typedef struct stone
+{
+   int x;
+   int y;
+   int dest_x;
+   int dest_y;
+   char up_face;
+   char north_face;
+} stones[28];
+
 char ***board;  //tablero del juego
 int tamano;
 int cells_in_x = 0; //cantidad de celdas horizontales
 int cells_in_y = 0; //cantidad de celdas verticales
 int turno = 0;
-int stock = 28; //cantidad de piezas disponibles
+int stock = 28; //cantidad de piezas disponibles 
 
 main(int argc, char *argv[])
 {
@@ -92,7 +102,7 @@ main(int argc, char *argv[])
          tamano = 2;
    }
 
-   create_board(board, 5,5);
+   board = create_board(board, cells_in_y, cells_in_x);
    
    gtk_widget_show_all(window);
    gtk_widget_show_all(input_window);
