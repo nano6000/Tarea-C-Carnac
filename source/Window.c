@@ -64,7 +64,7 @@ main(int argc, char *argv[])
       G_CALLBACK(gtk_main_quit), NULL);
 
    g_signal_connect(G_OBJECT(entry),"activate",/* when you press ENTER */
-      G_CALLBACK(on_entry_activate),NULL);
+      G_CALLBACK(on_entry_activate), window);
 
    //creacion del tablero y sus propiedades
    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
@@ -110,7 +110,7 @@ main(int argc, char *argv[])
 
    gtk_main();
 
-   //free_board(board, cells_in_x, cells_in_y);
+   free_board(board, cells_in_x, cells_in_y);
 
    return 0;
 
@@ -120,6 +120,7 @@ static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
    gpointer user_data)
 {
    draw_board(cr);
+   draw_pieces(cr);
 
    return FALSE;
 }
@@ -142,14 +143,30 @@ static void on_button_clicked(GtkToggleButton *button,gpointer data)
 
 }
 
-static void on_entry_activate(GtkEntry *entry,gpointer data)
+static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
 {
+   int exit_message = 0;
    g_printf("%s\n",gtk_entry_get_text(GTK_ENTRY(entry)));
    char *inst = (char *) gtk_entry_get_text(GTK_ENTRY(entry));
 
-   set_Stone(board, inst, tamano);
+   exit_message = set_Stone(board, inst, tamano);
+
+   switch(exit_message)
+   {
+      case -2:
+         //casilla ocupada
+         return;
+      case -1:
+         //position out of bounds
+         return;
+      case 0:
+         //casilla coordenadas o colores errones
+         return;
+   }
     
    gtk_entry_set_text (GTK_ENTRY(entry), "");
+
+   gtk_widget_queue_draw(widget);
 }
 
 static void draw_board(cairo_t *cr)
@@ -179,7 +196,68 @@ static void draw_board(cairo_t *cr)
       origin_y += size_cell_y;
    }
 
-   cairo_stroke_preserve(cr);
+   cairo_stroke(cr);
+
+}
+
+static void draw_pieces(cairo_t *cr)
+{
+   int i, j;
+   char color;
+
+   double size_cell_x = (WIDTH-100)/cells_in_x;
+   double size_cell_y = (HEIGHT-150)/cells_in_y;
+
+   double origin_x = 55;
+   double origin_y = 105;
+
+   double dest_x = 0;
+   double dest_y = 0;
+
+   cairo_set_line_width(cr, 5);
+
+   for (i = 0; i<cells_in_y; i++)
+   {
+      for(j = 0; j<cells_in_x; j++)
+      {
+         //g_printf("%x\n",board[i][j]);
+         if (*(*(*(board+i)+j)+1)!=' ')
+         {
+            color = *(*(*(board+i)+j)+1); //obtengo el color del norte
+            switch(color)
+            {
+               case 'R':
+                  cairo_set_source_rgb(cr, 255, 0, 0);
+                  break;
+               case 'B':
+                  cairo_set_source_rgb(cr, 255, 255, 255);
+                  break;
+            }
+
+            //Dibujo la linea de arriba del color del norte
+            dest_y = origin_y;
+            dest_x = origin_x  + (size_cell_x*(j+1)) - 10;
+
+            cairo_move_to(cr, origin_x + (size_cell_x * j),
+                              origin_y + (size_cell_y * i));
+            cairo_line_to(cr, dest_x, dest_y);
+
+            //Establecer el color de arriba
+
+            //Dibujo la linea de abajo del color superior+
+            dest_y = origin_y + (size_cell_x*(i+1)) - 25;
+            dest_x = origin_x + (size_cell_x*(j+1)) - 10;
+
+            cairo_move_to(cr, origin_x + (size_cell_x * j), 
+                           dest_y);
+            cairo_line_to(cr, dest_x, dest_y);
+
+            cairo_stroke(cr);
+         }
+      }
+      origin_x = 55;
+      origin_y = 105;
+   }
 }
 
 

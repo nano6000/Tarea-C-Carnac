@@ -34,39 +34,38 @@ char*** create_board(char ***board, int rows, int columns)
 }
 /* 
 Coloca la pieza en el lugar indicado del tablero
-Recibe: Puntero a la matriz del tablero, posicion en el formato 'YXDD'
-    en el tablero
+Recibe: Puntero a la matriz del tablero, posicion en el tablero
 Retorna: vacio
 */
 int set_Stone(char ***board, char *pos, int size)
 {
     int k = 0;
 
-    int x = *pos - 'A';
-    int y = *(pos+1) - '0';
-
     //validaciones
     if(*pos=='\0')
         return 0;
-    if(x > 8 || x < 0)
+
+    int y = *pos - 'A';
+    int x = *(pos+1) - '0';
+
+    if(y > 8 || y < 0)
         return 0;
-    if(y > 9 || y < 0)
+    if(x > 9 || x < 0)
         return 0;
-    if(*(pos+2)!='R' && *(pos+2)!='B')
+    if(*(pos+2)!='R' && *(pos+2)!='B') //verifico si se ingreso la casilla >10
     {
         if((*(pos+2) - '0') > 3 || (*(pos+2) - '0') < 0)
             return 0;
-        y = y*10 + (*(pos+2) - '0');
+        x = x*10 + (*(pos+2) - '0');
     }
-
     switch(size)
     {
-        case 0: //cambiar a 1
-            if(x<2 || x>6 || y<3 || y>10)
-                return 0;
-        case 1: //cambiar a 2
-            if(x<1 || x>7 || y<2 || y>11)
-                return 0;
+        case 1: //pequeno, empieza en la casilla 2C
+            if(x<3 || x>10 || y<2 || y>6)
+                return -1;
+        case 2: //mediano
+            if(x<2 || x>11 || y<1 || y>7)
+                return -1;
 
     }
 
@@ -74,13 +73,15 @@ int set_Stone(char ***board, char *pos, int size)
     //for (i=0; i< sizeof(pos);i++)
       //  g_printf("%s\n", (pos+i));
 
-    
+    if(*(*(*(board+y)+x)+1)!=' ')
+        return -2;
+
     if (y<10)
     {
         g_printf("%d %d", x ,y);
         
         for(k=0;k<2;k++)
-            *(*(*(board+x)+y)+k) = *(pos+2+k);
+            *(*(*(board+y)+x)+k) = *(pos+2+k);
 
         return 1;
     }
@@ -93,7 +94,6 @@ int set_Stone(char ***board, char *pos, int size)
 
         return 1;
     }
-    return 0;
 }
 
 
