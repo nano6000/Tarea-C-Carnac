@@ -48,8 +48,9 @@ main(int argc, char *argv[])
    buttonIA=gtk_toggle_button_new_with_label("IA On/Off");
    gtk_box_pack_start(GTK_BOX(hbox),buttonIA,FALSE,FALSE,0);
 
-
    gtk_container_add(GTK_CONTAINER(window), draw_area);
+
+   //Asigno las acciones de los componentes
 
    g_signal_connect(G_OBJECT(draw_area), "draw", 
       G_CALLBACK(on_draw_event), NULL); 
@@ -171,6 +172,14 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
 
 static void draw_board(cairo_t *cr)
 {
+   cairo_set_source_rgb(cr, 0.2, 0.2, 1);
+   cairo_set_line_width(cr, 2000);
+
+   cairo_move_to(cr, 0, 0);
+   cairo_line_to(cr, WIDTH, HEIGHT);
+
+   cairo_stroke(cr);
+
    cairo_set_source_rgb(cr, 0, 0, 0);
    cairo_set_line_width(cr, 1);
 
@@ -227,29 +236,62 @@ static void draw_pieces(cairo_t *cr)
             switch(color)
             {
                case 'R':
-                  cairo_set_source_rgb(cr, 255, 0, 0);
+                  cairo_set_source_rgb(cr, 1, 0, 0);
                   break;
                case 'B':
-                  cairo_set_source_rgb(cr, 255, 255, 255);
+                  cairo_set_source_rgb(cr, 1, 1, 1);
                   break;
             }
 
             //Dibujo la linea de arriba del color del norte
-            dest_y = origin_y;
-            dest_x = origin_x  + (size_cell_x*(j+1)) - 10;
+            dest_y = origin_y + (size_cell_y * i);
+            dest_x = origin_x + (size_cell_x * (j+1)) - 10;
 
             cairo_move_to(cr, origin_x + (size_cell_x * j),
                               origin_y + (size_cell_y * i));
             cairo_line_to(cr, dest_x, dest_y);
 
-            //Establecer el color de arriba
+            cairo_stroke(cr);
 
-            //Dibujo la linea de abajo del color superior+
-            dest_y = origin_y + (size_cell_x*(i+1)) - 25;
+            //Continuo con el resto de lineas del color superior
+
+            color = *(*(*(board+i)+j)); //obtengo el color superior
+            switch(color)
+            {
+               case 'R':
+                  cairo_set_source_rgb(cr, 1, 0, 0);
+                  break;
+               case 'B':
+                  cairo_set_source_rgb(cr, 1, 1, 1);
+                  break;
+            }
+
+            //Dibujo la linea de abajo del color superior
+            dest_y = origin_y + (size_cell_y*(i+1)) - 10;
             dest_x = origin_x + (size_cell_x*(j+1)) - 10;
 
             cairo_move_to(cr, origin_x + (size_cell_x * j), 
                            dest_y);
+            cairo_line_to(cr, dest_x, dest_y);
+
+            cairo_stroke(cr);
+
+            //Dibujo la linea izquierda del color superior
+            dest_y = origin_y + (size_cell_y*(i+1)) - 10;
+            dest_x = origin_x + (size_cell_x*j);
+
+            cairo_move_to(cr, dest_x,
+                              origin_y + (size_cell_y * i));
+            cairo_line_to(cr, dest_x, dest_y);
+
+            cairo_stroke(cr);
+
+            //Dibujo la linea derecha del color superior
+            dest_y = origin_y + (size_cell_y*(i+1)) - 10;
+            dest_x = origin_x + (size_cell_x*(j+1)) - 10;
+
+            cairo_move_to(cr, dest_x,
+                              origin_y + (size_cell_y * i));
             cairo_line_to(cr, dest_x, dest_y);
 
             cairo_stroke(cr);
