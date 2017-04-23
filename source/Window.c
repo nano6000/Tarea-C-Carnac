@@ -1,10 +1,12 @@
 #include <cairo.h>
+#include <stdlib.h>
+#include <string.h>
 #include <gtk/gtk.h>
 #include "../include/window.h"
 #include "../include/board.h"
 
 #define WIDTH 1000.0
-#define HEIGHT 600.0
+#define HEIGHT 700.0
 
 typedef struct stone
 {
@@ -122,6 +124,7 @@ static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
 {
    draw_board(cr);
    draw_pieces(cr);
+   //draw_score(cr);
 
    return FALSE;
 }
@@ -151,28 +154,50 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
    char *inst = (char *) gtk_entry_get_text(GTK_ENTRY(entry));
 
    exit_message = set_Stone(board, inst, tamano);
+   count_Dolmen(board, cells_in_x, cells_in_y, 'R');
 
-   switch(exit_message)
+   if (exit_message!=1)
    {
-      case -2:
-         //casilla ocupada
-         return;
-      case -1:
-         //position out of bounds
-         return;
-      case 0:
-         //casilla coordenadas o colores errones
-         return;
+      GtkWidget *error;
+      char *message = (char *) malloc(82 * sizeof(char));
+
+      switch(exit_message)
+      {
+         case -2:
+            strcpy(message, "¡Error! La casilla ya esta ocupada\
+                  \nseleccione otra casilla.");
+            break;
+         case -1:
+            strcpy(message, "¡Error! La casilla indicada se encuentra\
+                  \nfuera de los limites del tablero actual.");
+            break;
+         case 0:
+            strcpy(message, "¡Error! Coordenadas de la casilla o colores\
+                  \nerroneos.");
+            break;
+      }
+
+      error = gtk_message_dialog_new(GTK_WINDOW(widget),
+            GTK_DIALOG_MODAL,
+            GTK_MESSAGE_WARNING,
+            GTK_BUTTONS_OK,
+            message); 
+      gtk_dialog_run(GTK_DIALOG (error) );
+      gtk_widget_destroy(error);
    }
-    
+
    gtk_entry_set_text (GTK_ENTRY(entry), "");
 
    gtk_widget_queue_draw(widget);
 }
 
 static void draw_board(cairo_t *cr)
-{
-   cairo_set_source_rgb(cr, 0.2, 0.2, 1);
+{  
+   char *pos_x[] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", 
+               "9", "10", "11", "12", "13", ""};
+   char *pos_y[] = { "A", "B", "C", "D", "E", "F", "G", "H", "I", ""};
+
+   cairo_set_source_rgb(cr, 0.5, 0.5, 1);
    cairo_set_line_width(cr, 2000);
 
    cairo_move_to(cr, 0, 0);
@@ -180,27 +205,54 @@ static void draw_board(cairo_t *cr)
 
    cairo_stroke(cr);
 
+   cairo_select_font_face(cr, "Purisa",
+      CAIRO_FONT_SLANT_NORMAL,
+      CAIRO_FONT_WEIGHT_BOLD);
+
+   cairo_set_font_size(cr, 13);
+
    cairo_set_source_rgb(cr, 0, 0, 0);
    cairo_set_line_width(cr, 1);
 
    double size_cell_x = (WIDTH-100)/cells_in_x;
-   double size_cell_y = (HEIGHT-150)/cells_in_y;
+   double size_cell_y = (HEIGHT-250)/cells_in_y;
 
    double origin_x = 50 - size_cell_x;
-   double origin_y = 100;
+   double origin_y = 200;
 
    int i;
    for (i = 0; i <= cells_in_x; i++ ) 
    {
       origin_x += size_cell_x;
 
+      //Dibujo lineas
       cairo_move_to(cr, origin_x, origin_y);
-      cairo_line_to(cr, origin_x, origin_y + (HEIGHT-150));
+      cairo_line_to(cr, origin_x, origin_y + (HEIGHT-250));
+
+      //Dibujo lineas superiores
+      cairo_move_to(cr, origin_x + (size_cell_x/2) - 5, origin_y - 10);
+      cairo_show_text(cr, pos_x[i]);
+
+      //Dibujo lineas inferiores
+      cairo_move_to(cr, origin_x + (size_cell_x/2) - 5, 
+                  origin_y + (HEIGHT-250) + 20);
+      cairo_show_text(cr, pos_x[i]);
    }
    for (i = 0; i <= cells_in_y; i++ ) 
    {
+      //Dibujo lineas
       cairo_move_to(cr, origin_x, origin_y);
       cairo_line_to(cr, origin_x - (WIDTH-100), origin_y);
+
+      //Dibujo letras derechas
+      cairo_move_to(cr, origin_x + 10, 
+                     origin_y + (size_cell_y/2));
+      cairo_show_text(cr, pos_y[i]);
+
+      //Dibujo letras izquierdas
+      cairo_move_to(cr, origin_x - (WIDTH-100) - 20, 
+                     origin_y + (size_cell_y/2));
+      cairo_show_text(cr, pos_y[i]);
 
       origin_y += size_cell_y;
    }
@@ -215,23 +267,57 @@ static void draw_pieces(cairo_t *cr)
    char color;
 
    double size_cell_x = (WIDTH-100)/cells_in_x;
-   double size_cell_y = (HEIGHT-150)/cells_in_y;
+   double size_cell_y = (HEIGHT-250)/cells_in_y;
 
    double origin_x = 55;
-   double origin_y = 105;
+   double origin_y = 205;
 
    double dest_x = 0;
    double dest_y = 0;
 
+   cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND); 
    cairo_set_line_width(cr, 5);
+
+   //cairo_pattern_t *pat;
 
    for (i = 0; i<cells_in_y; i++)
    {
       for(j = 0; j<cells_in_x; j++)
       {
-         //g_printf("%x\n",board[i][j]);
-         if (*(*(*(board+i)+j)+1)!=' ')
+         //Verifico que haya una pieza en esa casilla
+         if (*(*(*(board+i)+j))!=' ')
          {
+            //###################################################
+            //Pinto la casilla del color superior
+            //###################################################
+
+            color = *(*(*(board+i)+j)); //obtengo el color superior
+            switch(color)
+            {
+               case 'R':
+                  cairo_set_source_rgb(cr, 1, 0, 0);
+                  break;
+               case 'B':
+                  cairo_set_source_rgb(cr, 1, 1, 1);
+                  break;
+            }
+            /*
+            pat = cairo_pattern_create_linear (0, 0, 0, 256);
+            cairo_pattern_add_color_stop_rgba (pat, 0.75, 0, 0, 0, 1);
+            cairo_pattern_add_color_stop_rgba (pat, 1, 1, 1, 1, 1);*/
+
+            cairo_rectangle (cr, origin_x + (size_cell_x * j),
+                                 origin_y + (size_cell_y * i),
+                                 size_cell_x - 10,
+                                 size_cell_y - 10);
+
+            //cairo_set_source (cr, pat);
+            cairo_fill(cr);
+
+            //###################################################
+            //Dibujo las lineas norte
+            //###################################################
+
             color = *(*(*(board+i)+j)+1); //obtengo el color del norte
             switch(color)
             {
@@ -253,18 +339,12 @@ static void draw_pieces(cairo_t *cr)
 
             cairo_stroke(cr);
 
-            //Continuo con el resto de lineas del color superior
+            //###################################################
+            //Dibujo las lineas este y oeste, las cuales son de
+            //color opuesto a las del norte y sur
+            //###################################################
 
-            color = *(*(*(board+i)+j)); //obtengo el color superior
-            switch(color)
-            {
-               case 'R':
-                  cairo_set_source_rgb(cr, 1, 0, 0);
-                  break;
-               case 'B':
-                  cairo_set_source_rgb(cr, 1, 1, 1);
-                  break;
-            }
+            cairo_set_source_rgb(cr, 0, 0, 0);
 
             //Dibujo la linea de abajo del color superior
             dest_y = origin_y + (size_cell_y*(i+1)) - 10;
@@ -291,15 +371,22 @@ static void draw_pieces(cairo_t *cr)
             dest_x = origin_x + (size_cell_x*(j+1)) - 10;
 
             cairo_move_to(cr, dest_x,
-                              origin_y + (size_cell_y * i));
+                              origin_y +  (size_cell_y * i));
             cairo_line_to(cr, dest_x, dest_y);
 
             cairo_stroke(cr);
          }
       }
       origin_x = 55;
-      origin_y = 105;
+      origin_y = 205;
    }
 }
 
+/*/
+static void draw_score(cairo_t *cr)
+{
 
+}
+
+
+*/
