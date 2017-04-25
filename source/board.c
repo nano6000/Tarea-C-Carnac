@@ -87,12 +87,14 @@ int set_Stone(char ***board, char *pos, int size)
             return 0;
         }
     }
-    if( (*(pos+2)!='R' && *(pos+2)!='B') || //Como se ingreso una casilla de dos digitos, verifico
-        (*(pos+3)!='R' && *(pos+3)!='B') )  //que se haya ingresado valores correctos en los caracteres 2 y 3, 
-                                            //que corresponden a los colores superior y norte, respectivamente
-    {
-        return 0;
-    }
+    else
+        if( (*(pos+2)!='R' && *(pos+2)!='B') || //Como se ingreso una casilla de dos digitos, verifico
+            (*(pos+3)!='R' && *(pos+3)!='B') )  //que se haya ingresado valores correctos en los caracteres 2 y 3, 
+                                                //que corresponden a los colores superior y norte, respectivamente
+        {
+            return 0;
+        }
+
     switch(size)
     {
         case 1: //pequeno, empieza en la casilla 2C
@@ -145,8 +147,17 @@ int count_Dolmen(char ***board, int max_x, int max_y, char color)
 
     int equival_relationship[20][2];
     for (y = 0; y < 20; y++)
-        for (x = 0; x < 2; x++)
-            equival_relationship[y][x] = 0;
+    {
+        equival_relationship[y][0] = y;
+        equival_relationship[y][1] = 0;
+    }
+
+    int dolmen_sizes[20][2];
+    for (y = 0; y < 20; y++)
+    {
+        dolmen_sizes[y][0] = y;
+        dolmen_sizes[y][1] = 0;
+    }
 
     int curr_label = 0;
 
@@ -158,32 +169,36 @@ int count_Dolmen(char ***board, int max_x, int max_y, char color)
         {
             if(*(*(*(board+y)+x)) == color)
             {
-                //Does the pixel to the left (West) have the same value as the current pixel?
-                if(x>0 && *(*(*(board+y)+x-1)) == color)
-                {
-                    labeled_board[y][x] = labeled_board[y][x-1];
-                    continue;
-                }
-
                 //Do both pixels to the North and West of the current pixel have the same value as the current 
                 //pixel but not the same label?
-                if(x>0 && y>0 
-                    && *(*(*(board+y)+x-1)) == color && *(*(*(board+y-1)+x)) == color
-                    && labeled_board[y][x-1] != labeled_board[y-1][x])
+                if((x>0 && y>0 )
+                    && (*(*(*(board+y)+x-1)) == color)
+                    && (*(*(*(board+y-1)+x)) == color)
+                    && (labeled_board[y][x-1] != labeled_board[y-1][x]))
                 {
                     //Busco el menor para ponerlo en la matriz de etiquetas
+
+                    //El de la izquierda es menor que el de arriba
                     if(labeled_board[y][x-1] < labeled_board[y-1][x])
                     {
                         labeled_board[y][x] = labeled_board[y][x-1];
                         //Lo asigno en la tabla de equivalencia
-                        equival_relationship[labeled_board[y-1][x]][0] = labeled_board[y-1][x];
                         equival_relationship[labeled_board[y-1][x]][1] = labeled_board[y][x-1];                        
                     }
+                    //El de arriba es menor que el de la izquierda
                     else
+                    {
                         labeled_board[y][x] = labeled_board[y-1][x];
                         //Lo asigno en la tabla de equivalencia
-                        equival_relationship[labeled_board[y][x-1]][0] = labeled_board[y][x-1];
                         equival_relationship[labeled_board[y][x-1]][1] = labeled_board[y-1][x];
+                    }
+                    continue;
+                }
+
+                //Does the pixel to the left (West) have the same value as the current pixel?
+                if(x>0 && *(*(*(board+y)+x-1)) == color)
+                {
+                    labeled_board[y][x] = labeled_board[y][x-1];
                     continue;
                 }
 
@@ -196,9 +211,36 @@ int count_Dolmen(char ***board, int max_x, int max_y, char color)
                 }
 
                 labeled_board[y][x] = ++curr_label;
+                equival_relationship[curr_label][1] = curr_label;
             }
         }
     }
+
+    //Reemplazo los labels de acuerdo de la tabla de relacion de equivalencia
+    for (y = 0; y < max_y; y++)
+    {
+        for (x = 0; x < max_x; x++)
+        {
+            labeled_board[y][x] = equival_relationship[labeled_board[y][x]][1];
+        }
+    }
+
+    //Cuento los tamaños de cada bloque que hay y los guardo
+    for (y = 0; y < max_y; y++)
+        for (x = 0; x < max_x; x++)
+            dolmen_sizes[labeled_board[y][x]][1]++;
+
+    //Cuento la cantidad de bloques que hay
+    for (y = 1; y < 20; y++)
+        if (dolmen_sizes[y][1] > 2)
+        {
+            result++;
+        }
+
+
+
+
+
 
     for (y = 0; y < max_y; y++)
     {
@@ -207,5 +249,13 @@ int count_Dolmen(char ***board, int max_x, int max_y, char color)
         g_printf("%s", "\n");
     }
 
+    for (y = 0; y < 20; y++)
+    {
+        for (x = 0; x < 2; x++)
+            g_printf("%d ", equival_relationship[y][x]);
+        g_printf("%s", "\n");
+    }
+
+    return result;
 
 }

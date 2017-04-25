@@ -8,7 +8,7 @@ compile: $(OBJS)
 
 
 debug: $(OBJS)
-	$(CC) -g -o $(OUT) $(OBJS) `pkg-config --cflags --libs gtk+-3.0` #$(LIBS)
+	$(CC) -g -o $(OUT) $(OBJS) `pkg-config --cflags --libs gtk+-3.0`
 	gdb $(OUT)
 
 run:

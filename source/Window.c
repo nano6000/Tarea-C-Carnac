@@ -6,7 +6,7 @@
 #include "../include/board.h"
 
 #define WIDTH 1000.0
-#define HEIGHT 700.0
+#define HEIGHT 650.0
 
 typedef struct stone
 {
@@ -23,7 +23,10 @@ int tamano;
 int cells_in_x = 0; //cantidad de celdas horizontales
 int cells_in_y = 0; //cantidad de celdas verticales
 int turno = 0;
-int stock = 28; //cantidad de piezas disponibles 
+int stock = 1; //28; //cantidad de piezas disponibles 
+
+char* red_score;
+char* white_score;
 
 main(int argc, char *argv[])
 {
@@ -106,6 +109,11 @@ main(int argc, char *argv[])
    }
 
    board = create_board(board, cells_in_y, cells_in_x);
+   red_score = malloc(2 * sizeof(char));
+   white_score = malloc(2 * sizeof(char));
+
+   strcpy(red_score, "0\0");
+   strcpy(white_score, "0\0");
    
    gtk_widget_show_all(window);
    gtk_widget_show_all(input_window);
@@ -154,12 +162,16 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
    char *inst = (char *) gtk_entry_get_text(GTK_ENTRY(entry));
 
    exit_message = set_Stone(board, inst, tamano);
-   count_Dolmen(board, cells_in_x, cells_in_y, 'R');
+   *red_score = count_Dolmen(board, cells_in_x, cells_in_y, 'R') + '0';
+   *white_score = count_Dolmen(board, cells_in_x, cells_in_y, 'B') + '0';
+
+   stock--;
 
    if (exit_message!=1)
    {
       GtkWidget *error;
       char *message = (char *) malloc(82 * sizeof(char));
+      stock++;
 
       switch(exit_message)
       {
@@ -189,15 +201,45 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
    gtk_entry_set_text (GTK_ENTRY(entry), "");
 
    gtk_widget_queue_draw(widget);
+
+   if(!stock)
+   {
+      GtkWidget *win;
+      char *win_message = (char *) malloc(82 * sizeof(char));
+      strcpy(win_message, "Fin de la partida!");
+
+      win = gtk_message_dialog_new(GTK_WINDOW(widget),
+            GTK_DIALOG_MODAL,
+            GTK_MESSAGE_WARNING,
+            GTK_BUTTONS_OK,
+            win_message); 
+      gtk_dialog_run(GTK_DIALOG (win) );
+      gtk_widget_destroy(win);
+   }
 }
 
 static void draw_board(cairo_t *cr)
 {  
+   //Desplazamiento en el arreglo de coordenadas
+   int desp_x = 0;
+   int desp_y = 0;
+   switch (tamano)
+   {
+      case 1:
+         desp_x = 3;
+         desp_y = 2;
+         break;
+      case 2:
+         desp_x = 2;
+         desp_y = 1;
+         break;
+   }
    char *pos_x[] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", 
                "9", "10", "11", "12", "13", ""};
    char *pos_y[] = { "A", "B", "C", "D", "E", "F", "G", "H", "I", ""};
 
-   cairo_set_source_rgb(cr, 0.5, 0.5, 1);
+   //pinto el fondo de la pantalla
+   cairo_set_source_rgba(cr, 0, 0.4, 0, 0.75);
    cairo_set_line_width(cr, 2000);
 
    cairo_move_to(cr, 0, 0);
@@ -205,20 +247,24 @@ static void draw_board(cairo_t *cr)
 
    cairo_stroke(cr);
 
+   //inicializo las propiedades del texto
    cairo_select_font_face(cr, "Purisa",
       CAIRO_FONT_SLANT_NORMAL,
       CAIRO_FONT_WEIGHT_BOLD);
 
    cairo_set_font_size(cr, 13);
 
+   //inicializo las propiedades de las lineas
    cairo_set_source_rgb(cr, 0, 0, 0);
    cairo_set_line_width(cr, 1);
 
+   //tamano de cada celda del tablero
    double size_cell_x = (WIDTH-100)/cells_in_x;
-   double size_cell_y = (HEIGHT-250)/cells_in_y;
+   double size_cell_y = (HEIGHT-200)/cells_in_y;
 
+   //punto de origen de la esquina superior izquierda del tablero
    double origin_x = 50 - size_cell_x;
-   double origin_y = 200;
+   double origin_y = 150;
 
    int i;
    for (i = 0; i <= cells_in_x; i++ ) 
@@ -227,17 +273,18 @@ static void draw_board(cairo_t *cr)
 
       //Dibujo lineas
       cairo_move_to(cr, origin_x, origin_y);
-      cairo_line_to(cr, origin_x, origin_y + (HEIGHT-250));
+      cairo_line_to(cr, origin_x, origin_y + (HEIGHT-200));
 
-      //Dibujo lineas superiores
+      //Dibujo letras superiores
       cairo_move_to(cr, origin_x + (size_cell_x/2) - 5, origin_y - 10);
-      cairo_show_text(cr, pos_x[i]);
+      cairo_show_text(cr, pos_x[i + desp_x]);
 
-      //Dibujo lineas inferiores
+      //Dibujo letras inferiores
       cairo_move_to(cr, origin_x + (size_cell_x/2) - 5, 
-                  origin_y + (HEIGHT-250) + 20);
-      cairo_show_text(cr, pos_x[i]);
+                  origin_y + (HEIGHT-200) + 20);
+      cairo_show_text(cr, pos_x[i + desp_x]);
    }
+
    for (i = 0; i <= cells_in_y; i++ ) 
    {
       //Dibujo lineas
@@ -247,17 +294,41 @@ static void draw_board(cairo_t *cr)
       //Dibujo letras derechas
       cairo_move_to(cr, origin_x + 10, 
                      origin_y + (size_cell_y/2));
-      cairo_show_text(cr, pos_y[i]);
+      cairo_show_text(cr, pos_y[i + desp_y]);
 
       //Dibujo letras izquierdas
       cairo_move_to(cr, origin_x - (WIDTH-100) - 20, 
                      origin_y + (size_cell_y/2));
-      cairo_show_text(cr, pos_y[i]);
+      cairo_show_text(cr, pos_y[i + desp_y]);
 
       origin_y += size_cell_y;
    }
-
    cairo_stroke(cr);
+
+   //Dibujo el marcador
+   cairo_select_font_face(cr, "Courier",
+      CAIRO_FONT_SLANT_NORMAL,
+      CAIRO_FONT_WEIGHT_BOLD);
+
+   cairo_set_font_size(cr, 100);
+
+   cairo_set_source_rgba(cr, 0.8, 0, 0, 1);
+
+   //Marcador Rojo
+   cairo_move_to(cr, (WIDTH/2) - 110, 100);
+   cairo_show_text(cr, red_score);
+
+   //Separador
+   cairo_set_source_rgba(cr, 0, 0, 0, 1);
+
+   cairo_move_to(cr, (WIDTH/2) - 50, 100);
+   cairo_show_text(cr, "-");
+
+   //Marcador Blanco
+   cairo_set_source_rgba(cr, 1, 1, 1, 1);
+
+   cairo_move_to(cr, (WIDTH/2) + 10, 100);
+   cairo_show_text(cr, white_score);
 
 }
 
@@ -267,10 +338,10 @@ static void draw_pieces(cairo_t *cr)
    char color;
 
    double size_cell_x = (WIDTH-100)/cells_in_x;
-   double size_cell_y = (HEIGHT-250)/cells_in_y;
+   double size_cell_y = (HEIGHT-200)/cells_in_y;
 
    double origin_x = 55;
-   double origin_y = 205;
+   double origin_y = 155;
 
    double dest_x = 0;
    double dest_y = 0;
@@ -378,7 +449,7 @@ static void draw_pieces(cairo_t *cr)
          }
       }
       origin_x = 55;
-      origin_y = 205;
+      origin_y = 155;
    }
 }
 
