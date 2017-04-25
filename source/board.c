@@ -57,12 +57,13 @@ void free_board(char ***board, int columns, int rows)
 
 /* 
 Coloca la pieza en el lugar indicado del tablero
-Recibe: Puntero a la matriz del tablero, posicion en el tablero
+Recibe: Puntero a la matriz del tablero, posicion en el tablero, tamano del tablero
 Retorna: vacio
 */
 int set_Stone(char ***board, char *pos, int size)
 {
     int k = 0;
+    int mayor_10 = 0;
 
     //validaciones
     if(*pos=='\0')
@@ -80,6 +81,7 @@ int set_Stone(char ***board, char *pos, int size)
         if((*(pos+2) - '0') > 3 || (*(pos+2) - '0') < 0) //Verifico que se hay ingresado una casilla entre 10 y 13
             return 0;
         x = x*10 + (*(pos+2) - '0');
+        mayor_10++;
         if( (*(pos+3)!='R' && *(pos+3)!='B') || //Como se ingreso una casilla de dos digitos, verifico
             (*(pos+4)!='R' && *(pos+4)!='B') )  //que se haya ingresado valores correctos en los caracteres 3 y 4, 
                                                 //que corresponden a los colores superior y norte, respectivamente
@@ -97,13 +99,17 @@ int set_Stone(char ***board, char *pos, int size)
 
     switch(size)
     {
-        case 1: //pequeno, empieza en la casilla 2C
+        case 1: //pequeno, empieza en la casilla 3C
             if(x<3 || x>10 || y<2 || y>6)
                 return -1;
+            x -= 3;
+            y -= 2;
+            break;
         case 2: //mediano
             if(x<2 || x>11 || y<1 || y>7)
                 return -1;
-
+            x -= 2;
+            y -= 1;
     }
 
     //int i;
@@ -113,7 +119,7 @@ int set_Stone(char ***board, char *pos, int size)
     if(*(*(*(board+y)+x)+1)!=' ')
         return -2;
 
-    if (x<10)
+    if (!mayor_10)
     {
         //g_printf("%d %d", x ,y);
         
@@ -133,9 +139,16 @@ int set_Stone(char ***board, char *pos, int size)
     }
 }
 
-int count_Dolmen(char ***board, int max_x, int max_y, char color)
+/* 
+Cuenta la cantidad de Dolmens u obtiene el tamano del dolmen mas grande
+Recibe: Puntero a la matriz del tablero, posicion en el tablero y tipo de conteo
+    ('R' -> cantidad de Dolmens 'D' -> desempate, tamano del dolmen mas grande)
+Retorna: vacio
+*/
+int count_Dolmen(char ***board, int max_x, int max_y, char color, char type_count)
 {
     int result = 0;
+    int mayor = 0;
     
     int y = 0;
     int x = 0;
@@ -204,7 +217,7 @@ int count_Dolmen(char ***board, int max_x, int max_y, char color)
 
                 //Does the pixel to the left (West) have a different value and the one to the North 
                 //the same value as the current pixel?
-                if(x>0 && y>0 && *(*(*(board+y-1)+x)) == color)
+                if(y>0 && *(*(*(board+y-1)+x)) == color)
                 {
                     labeled_board[y][x] = labeled_board[y-1][x];
                     continue;
@@ -230,13 +243,20 @@ int count_Dolmen(char ***board, int max_x, int max_y, char color)
         for (x = 0; x < max_x; x++)
             dolmen_sizes[labeled_board[y][x]][1]++;
 
-    //Cuento la cantidad de bloques que hay
-    for (y = 1; y < 20; y++)
-        if (dolmen_sizes[y][1] > 2)
-        {
-            result++;
-        }
-
+    switch(type_count)
+    {
+        case 'R':
+            //Cuento la cantidad de bloques que hay
+            for (y = 1; y < 20; y++)
+                if (dolmen_sizes[y][1] > 2)
+                    result++;
+            return result;
+        case 'D':
+            for (y = 1; y < 20; y++)
+                if (dolmen_sizes[y][1] > mayor)
+                    mayor = dolmen_sizes[y][1];
+            return mayor;
+    }
 
 
 
@@ -252,7 +272,7 @@ int count_Dolmen(char ***board, int max_x, int max_y, char color)
     for (y = 0; y < 20; y++)
     {
         for (x = 0; x < 2; x++)
-            g_printf("%d ", equival_relationship[y][x]);
+            g_printf("%d ", dolmen_sizes[y][x]);
         g_printf("%s", "\n");
     }
 

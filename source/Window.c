@@ -23,7 +23,7 @@ int tamano;
 int cells_in_x = 0; //cantidad de celdas horizontales
 int cells_in_y = 0; //cantidad de celdas verticales
 int turno = 0;
-int stock = 1; //28; //cantidad de piezas disponibles 
+int stock = 28; //cantidad de piezas disponibles 
 
 char* red_score;
 char* white_score;
@@ -132,18 +132,11 @@ static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
 {
    draw_board(cr);
    draw_pieces(cr);
-   //draw_score(cr);
+   draw_score(cr);
 
    return FALSE;
 }
 
-/*static void do_drawing(cairo_t *cr)
-{
-   cairo_set_source_rgb(cr, 0, 0, 0);
-   cairo_set_line_width(cr,1);
-
-
-}*/
 
 static void on_button_clicked(GtkToggleButton *button,gpointer data)
 {
@@ -162,8 +155,8 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
    char *inst = (char *) gtk_entry_get_text(GTK_ENTRY(entry));
 
    exit_message = set_Stone(board, inst, tamano);
-   *red_score = count_Dolmen(board, cells_in_x, cells_in_y, 'R') + '0';
-   *white_score = count_Dolmen(board, cells_in_x, cells_in_y, 'B') + '0';
+   *red_score = count_Dolmen(board, cells_in_x, cells_in_y, 'R', 'R') + '0';
+   *white_score = count_Dolmen(board, cells_in_x, cells_in_y, 'B', 'R') + '0';
 
    stock--;
 
@@ -205,8 +198,44 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
    if(!stock)
    {
       GtkWidget *win;
-      char *win_message = (char *) malloc(82 * sizeof(char));
-      strcpy(win_message, "Fin de la partida!");
+      char *win_message = (char *) malloc(100 * sizeof(char));
+      int result_red = *red_score - '0';
+      int result_white = *white_score - '0';
+
+      //Gana el rojo
+      if (result_red > result_white)
+      {
+         strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador rojo, por mayor cantidad de dolmens");
+      }
+      //Gana el blanco
+      if (result_red < result_white)
+         strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador blanco, por mayor cantidad de dolmens");
+      //Quedan empates
+      if (result_red == result_white)
+      {
+         *red_score = count_Dolmen(board, cells_in_x, cells_in_y, 'R', 'D') + '0';
+         *white_score = count_Dolmen(board, cells_in_x, cells_in_y, 'B', 'D') + '0';
+
+         result_red = *red_score - '0';
+         result_white = *white_score - '0';
+
+         //Gana el rojo
+         if (result_red>result_white)
+         {
+            strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador rojo, por dolmen mas grande: ");
+            strcat(win_message, red_score);
+         }
+         //Gana el blanco
+         if (result_red < result_white)
+         {
+            strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador blanco, por dolmen mas grande: ");
+            strcat(win_message, white_score);
+         }
+         //Volvieron a quedar empates
+         if (result_red == result_white)
+            strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador rojo, por mandato divino de Lord Kirstein");
+
+      }
 
       win = gtk_message_dialog_new(GTK_WINDOW(widget),
             GTK_DIALOG_MODAL,
@@ -275,14 +304,17 @@ static void draw_board(cairo_t *cr)
       cairo_move_to(cr, origin_x, origin_y);
       cairo_line_to(cr, origin_x, origin_y + (HEIGHT-200));
 
-      //Dibujo letras superiores
-      cairo_move_to(cr, origin_x + (size_cell_x/2) - 5, origin_y - 10);
-      cairo_show_text(cr, pos_x[i + desp_x]);
-
-      //Dibujo letras inferiores
-      cairo_move_to(cr, origin_x + (size_cell_x/2) - 5, 
-                  origin_y + (HEIGHT-200) + 20);
-      cairo_show_text(cr, pos_x[i + desp_x]);
+      if (i<cells_in_x)
+      {
+         //Dibujo letras superiores
+         cairo_move_to(cr, origin_x + (size_cell_x/2) - 5, origin_y - 10);
+         cairo_show_text(cr, pos_x[i + desp_x]);
+   
+         //Dibujo letras inferiores
+         cairo_move_to(cr, origin_x + (size_cell_x/2) - 5, 
+                     origin_y + (HEIGHT-200) + 20);
+         cairo_show_text(cr, pos_x[i + desp_x]);
+      }
    }
 
    for (i = 0; i <= cells_in_y; i++ ) 
@@ -291,44 +323,22 @@ static void draw_board(cairo_t *cr)
       cairo_move_to(cr, origin_x, origin_y);
       cairo_line_to(cr, origin_x - (WIDTH-100), origin_y);
 
-      //Dibujo letras derechas
-      cairo_move_to(cr, origin_x + 10, 
-                     origin_y + (size_cell_y/2));
-      cairo_show_text(cr, pos_y[i + desp_y]);
-
-      //Dibujo letras izquierdas
-      cairo_move_to(cr, origin_x - (WIDTH-100) - 20, 
-                     origin_y + (size_cell_y/2));
-      cairo_show_text(cr, pos_y[i + desp_y]);
+      if (i<cells_in_y)
+      {
+         //Dibujo letras derechas
+         cairo_move_to(cr, origin_x + 10, 
+                        origin_y + (size_cell_y/2));
+         cairo_show_text(cr, pos_y[i + desp_y]);
+   
+         //Dibujo letras izquierdas
+         cairo_move_to(cr, origin_x - (WIDTH-100) - 20, 
+                        origin_y + (size_cell_y/2));
+         cairo_show_text(cr, pos_y[i + desp_y]);
+      }
 
       origin_y += size_cell_y;
    }
    cairo_stroke(cr);
-
-   //Dibujo el marcador
-   cairo_select_font_face(cr, "Courier",
-      CAIRO_FONT_SLANT_NORMAL,
-      CAIRO_FONT_WEIGHT_BOLD);
-
-   cairo_set_font_size(cr, 100);
-
-   cairo_set_source_rgba(cr, 0.8, 0, 0, 1);
-
-   //Marcador Rojo
-   cairo_move_to(cr, (WIDTH/2) - 110, 100);
-   cairo_show_text(cr, red_score);
-
-   //Separador
-   cairo_set_source_rgba(cr, 0, 0, 0, 1);
-
-   cairo_move_to(cr, (WIDTH/2) - 50, 100);
-   cairo_show_text(cr, "-");
-
-   //Marcador Blanco
-   cairo_set_source_rgba(cr, 1, 1, 1, 1);
-
-   cairo_move_to(cr, (WIDTH/2) + 10, 100);
-   cairo_show_text(cr, white_score);
 
 }
 
@@ -453,11 +463,33 @@ static void draw_pieces(cairo_t *cr)
    }
 }
 
-/*/
+
 static void draw_score(cairo_t *cr)
 {
+   //Dibujo el marcador
+   cairo_select_font_face(cr, "Courier",
+      CAIRO_FONT_SLANT_NORMAL,
+      CAIRO_FONT_WEIGHT_BOLD);
+
+   cairo_set_font_size(cr, 100);
+
+   cairo_set_source_rgba(cr, 0.8, 0, 0, 1);
+
+   //Marcador Rojo
+   cairo_move_to(cr, (WIDTH/2) - 110, 100);
+   cairo_show_text(cr, red_score);
+
+   //Separador
+   cairo_set_source_rgba(cr, 0, 0, 0, 1);
+
+   cairo_move_to(cr, (WIDTH/2) - 50, 100);
+   cairo_show_text(cr, "-");
+
+   //Marcador Blanco
+   cairo_set_source_rgba(cr, 1, 1, 1, 1);
+
+   cairo_move_to(cr, (WIDTH/2) + 10, 100);
+   cairo_show_text(cr, white_score);
 
 }
 
-
-*/
