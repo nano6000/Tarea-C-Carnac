@@ -3,10 +3,10 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #endif
 
-#include <stdio.h>
 #include "../include/board.h"
 
 /* 
@@ -16,23 +16,23 @@ Retorna: vacio
 */
 char*** create_board(char ***board, int rows, int columns)
 {
-	int i = 0, x = 0, k = 0, count = 0;
+	int y = 0, x = 0, k = 0, count = 0;
     char* string = "  ";
 
 	board=(char ***) malloc(rows * sizeof(char **));
 
-    for(i=0;i<rows;i++)
+    for(y=0;y<rows;y++)
     {
-        board[i]=(char **)malloc(columns * sizeof(char *));
+        board[y]=(char **)malloc(columns * sizeof(char *));
         for(x=0;x<columns;x++)
-            board[i][x]= (char *)malloc(3*sizeof(char));
+            board[y][x]= (char *)malloc(3*sizeof(char));
     }
     
-    for(i=0; i<rows; i++)
+    for(y=0; y<rows; y++)
     {
     	for(x=0; x<columns; x++)
     	{
-    		strcpy(board[i][x], string);
+    		strcpy(board[y][x], string);
     	}
     }
 
@@ -58,9 +58,14 @@ void free_board(char ***board, int columns, int rows)
 /* 
 Coloca la pieza en el lugar indicado del tablero
 Recibe: Puntero a la matriz del tablero, posicion en el tablero, tamano del tablero
-Retorna: vacio
+    punteros x y y para guardar la ubicacion de la ultima pieza
+Retorna: entero, que sera tratado como codigos de salida (error y exito)
+    -2 -> La casilla ya esta ocupada\
+    -1 -> La casilla indicada se encuentra fuera de los limites del tablero actual
+     0 -> Coordenadas de la casilla o colores erroneos
+     1 -> Exito
 */
-int set_Stone(char ***board, char *pos, int size)
+int set_Stone(char ***board, char *pos, int size, int *x, int *y)
 {
     int k = 0;
     int mayor_10 = 0;
@@ -69,18 +74,18 @@ int set_Stone(char ***board, char *pos, int size)
     if(*pos=='\0')
         return 0;
 
-    int y = *pos - 'A';
-    int x = *(pos+1) - '0';
+    *y = *pos - 'A';
+    *x = *(pos+1) - '0';
 
-    if(y > 8 || y < 0)
+    if(*y > 8 || *y < 0)
         return 0;
-    if(x > 9 || x < 0)
+    if(*x > 9 || *x < 0)
         return 0;
     if(*(pos+2)!='R' && *(pos+2)!='B') //verifico si se ingreso la casilla >10
     {
         if((*(pos+2) - '0') > 3 || (*(pos+2) - '0') < 0) //Verifico que se hay ingresado una casilla entre 10 y 13
             return 0;
-        x = x*10 + (*(pos+2) - '0');
+        *x = (*x) * 10 + (*(pos+2) - '0');
         mayor_10++;
         if( (*(pos+3)!='R' && *(pos+3)!='B') || //Como se ingreso una casilla de dos digitos, verifico
             (*(pos+4)!='R' && *(pos+4)!='B') )  //que se haya ingresado valores correctos en los caracteres 3 y 4, 
@@ -100,42 +105,242 @@ int set_Stone(char ***board, char *pos, int size)
     switch(size)
     {
         case 1: //pequeno, empieza en la casilla 3C
-            if(x<3 || x>10 || y<2 || y>6)
+            if(*x<3 || *x>10 || *y<2 || *y>6)
                 return -1;
-            x -= 3;
-            y -= 2;
+            *x -= 3;
+            *y -= 2;
             break;
         case 2: //mediano
-            if(x<2 || x>11 || y<1 || y>7)
+            if(*x<2 || *x>11 || *y<1 || *y>7)
                 return -1;
-            x -= 2;
-            y -= 1;
+            *x -= 2;
+            *y -= 1;
     }
 
-    //int i;
-    //for (i=0; i< sizeof(pos);i++)
-      //  g_printf("%s\n", (pos+i));
-
-    if(*(*(*(board+y)+x)+1)!=' ')
+    if(*(*(*(board+(*y))+(*x))+1)!=' ')
         return -2;
 
     if (!mayor_10)
     {
-        //g_printf("%d %d", x ,y);
-        
         for(k=0;k<2;k++)
-            *(*(*(board+y)+x)+k) = *(pos+2+k);
-
+            *(*(*(board+(*y))+(*x))+k) = *(pos+2+k);
         return 1;
     }
     else
     {
-        //  g_printf("%d %d", x ,y);
-        
         for(k=0;k<2;k++)
-            *(*(*(board+y)+x)+k) = *(pos+3+k);
+            *(*(*(board+(*y))+(*x))+k) = *(pos+3+k);
+        return 1;
+    }
+}
+
+/* 
+Verifico si es posible botar la pieza en al menos una direccion
+Recibe: Puntero a la matriz del tablero, posicion en el tablero, tamano del tablero
+    punteros x y y para unicar la ubicacion de la ultima pieza
+Retorna: entero, que sera tratado como codigos de salida (error y exito)
+        0 -> No es posible
+        1 -> Es posible
+*/
+int verif_TakeDown(char ***board, int size, int *x, int *y)
+{
+    int max_y = 0, max_x = 0;
+    switch(size)
+    {
+        case 1:
+            max_x = 7;
+            max_y = 4;
+            break;
+        case 2:
+            max_x = 9;
+            max_y = 6;
+            break;
+        case 3:
+            max_x = 13;
+            max_y = 8;
+            break;
+    }
+
+    if(*y >= 2 && *(*(*(board + (*y-1)) + (*x))) == ' ' &&
+            *(*(*(board + (*y-2)) + (*x))) == ' ')
 
         return 1;
+
+    if(*x >= 2 && *(*(*(board + (*y)) + (*x-1))) == ' ' &&
+            *(*(*(board + (*y)) + (*x-2))) == ' ')
+
+        return 1;
+
+    if(*y < max_y-2 && *(*(*(board + (*y+1)) + (*x))) == ' ' &&
+                *(*(*(board + (*y+2)) + (*x))) == ' ')
+            
+        return 1;
+            
+    if(*x < max_x-2 && *(*(*(board + (*y)) + (*x+1))) == ' ' &&
+                *(*(*(board + (*y)) + (*x+2))) == ' ')
+            
+        return 1;
+            
+    *x = -1;
+    *y = -1;
+    return 0;
+}
+
+/* 
+Bota la pieza hacia la direccion indicada
+Recibe: Puntero a la matriz del tablero, posicion en el tablero, tamano del tablero
+    punteros x y y para unicar la ubicacion de la ultima pieza
+Retorna: entero, que sera tratado como codigos de salida (error y exito)
+        -2 -> El jugador decidio no botarlo
+        -1 -> No es posible botarlo en esa direccion
+         0 -> Direccion no valida
+         1 -> Botado exitoso
+*/
+int takeDown_Stone(char ***board, char *pos, int size, int *x, int *y)
+{
+    int max_y = 0, max_x = 0;
+    char *cell_state = malloc(3*sizeof(char));
+    switch(size)
+    {
+        case 1:
+            max_x = 7;
+            max_y = 4;
+            break;
+        case 2:
+            max_x = 9;
+            max_y = 6;
+            break;
+        case 3:
+            max_x = 13;
+            max_y = 8;
+            break;
+    }
+
+    //validaciones
+    if(*pos=='\0' || (*pos!='-' && 
+                      *pos!='N' && *pos!='O' &&
+                      *pos!='S' &&  *pos!='E'))
+    {
+        free(cell_state);
+        return 0;
+    }
+
+    switch(*pos)
+    {
+        case '-':
+            *x = -1;
+            *y = -1;
+            free(cell_state);
+            return -2;
+        case 'N':
+            if(*y<2)
+            {
+                free(cell_state);
+                return -1;
+            }
+            if( *(*(*(board + (*y-1)) + (*x))) == ' ' &&
+                *(*(*(board + (*y-2)) + (*x))) == ' ')
+            {
+                *(cell_state) = *(*(*(board+(*y))+(*x))+1);
+                *(cell_state + 1) = *(*(*(board+(*y))+(*x)));
+
+                strcpy(board[*y-1][*x], cell_state);
+                strcpy(board[*y-2][*x], cell_state);
+                strcpy(board[*y][*x], "  ");
+                *x = -1;
+                *y = -1;
+                free(cell_state);
+                return 1;
+            }
+            else
+            {
+                free(cell_state);
+                return -1;
+            }
+        case 'E':
+            if(*x<2)
+            {
+                free(cell_state);
+                return -1;
+            }
+            if( *(*(*(board + (*y)) + (*x-1))) == ' ' &&
+                *(*(*(board + (*y)) + (*x-2))) == ' ')
+            {
+                if(*(*(*(board+(*y))+(*x))+1) == 'B') //El norte es blanco, entonces la superficie tiene que ser el contrario
+                    *(cell_state) = 'R';
+                else    //El norte es rojo, entonces la superficie tiene que ser el contrario
+                    *(cell_state) = 'B';
+                *(cell_state + 1) = *(*(*(board+(*y))+(*x))+1);
+
+                strcpy(board[*y][*x-1], cell_state);
+                strcpy(board[*y][*x-2], cell_state);
+                strcpy(board[*y][*x], "  ");
+                *x = -1;
+                *y = -1;
+                free(cell_state);
+                return 1;
+            }
+            else
+            {
+                free(cell_state);
+                return -1;
+            }
+        case 'S':
+            if(*y>max_y-2)
+            {
+                free(cell_state);
+                return -1;
+            }
+            if( *(*(*(board + (*y+1)) + (*x))) == ' ' &&
+                *(*(*(board + (*y+2)) + (*x))) == ' ')
+            {
+                if(*(*(*(board+(*y))+(*x))) == 'B') //El norte es blanco, entonces la superficie tiene que ser el contrario
+                    *(cell_state+1) = 'R';
+                else    //El norte es rojo, entonces la superficie tiene que ser el contrario
+                    *(cell_state+1) = 'B';
+                *(cell_state) = *(*(*(board+(*y))+(*x))+1);
+
+                strcpy(board[*y+1][*x], cell_state);
+                strcpy(board[*y+2][*x], cell_state);
+                strcpy(board[*y][*x], "  ");
+                *x = -1;
+                *y = -1;
+                free(cell_state);
+                return 1;
+            }
+            else
+            {
+                free(cell_state);
+                return -1;
+            }
+        case 'O':
+            if(*x>max_x-2)
+            {
+                free(cell_state);
+                return -1;
+            }
+            if( *(*(*(board + (*y)) + (*x+1))) == ' ' &&
+                *(*(*(board + (*y)) + (*x+2))) == ' ')
+            {
+                if(*(*(*(board+(*y))+(*x))+1) == 'B') //El norte es blanco, entonces la superficie tiene que ser el contrario
+                    *(cell_state) = 'R';
+                else    //El norte es rojo, entonces la superficie tiene que ser el contrario
+                    *(cell_state) = 'B';
+                *(cell_state + 1) = *(*(*(board+(*y))+(*x))+1);
+
+                strcpy(board[*y][*x+1], cell_state);
+                strcpy(board[*y][*x+2], cell_state);
+                strcpy(board[*y][*x], "  ");
+                *x = -1;
+                *y = -1;
+                free(cell_state);
+                return 1;
+            }
+            else
+            {
+                free(cell_state);
+                return -1;
+            }
     }
 }
 

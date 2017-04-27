@@ -2,91 +2,142 @@
 #include <stdlib.h>
 #include <string.h>
 #include <gtk/gtk.h>
-#include "../include/window.h"
+#include "../include/carnac-Bosques-Esteban.h"
 #include "../include/board.h"
+#include "../include/file.h"
 
 #define WIDTH 1000.0
 #define HEIGHT 650.0
 
-typedef struct stone
-{
-   int x;
-   int y;
-   int dest_x;
-   int dest_y;
-   char up_face;
-   char north_face;
-} stones[28];
-
 char ***board;  //tablero del juego
-int tamano;
+int size;
 int cells_in_x = 0; //cantidad de celdas horizontales
 int cells_in_y = 0; //cantidad de celdas verticales
-int turno = 0;
-int stock = 28; //cantidad de piezas disponibles 
+
+int turn = 0;  //Par -> blanco, impar -> rojo
+int stock = 28; //cantidad de piezas disponibles
+
+//Control de la ultima pieza puesta en el tablero
+int last_piece_x = -1;
+int last_piece_y = -1;
+
+char *outputLog;
+
+int num_output = 0;
+char *filename;
 
 char* red_score;
 char* white_score;
 
+GtkWidget *entry_red;
+GtkWidget *entry_white;
+
+GtkWidget *buttonIA_red;
+GtkWidget *buttonIA_white;
+
 main(int argc, char *argv[])
 {
    GtkWidget *window;
+   GtkWidget *input_window;
+
+
    GtkWidget *draw_area;
    GtkWidget *hbox;
-   GtkWidget *entry;
-   GtkWidget *input_window;
-   GtkWidget *buttonIA;
+
+   GtkWidget *label_red;
+   GtkWidget *label_white;
 
    gtk_init(&argc, &argv);
 
+//========================== Ventana principal ==================================
    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-   input_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
    draw_area = gtk_drawing_area_new();
-
-   hbox=gtk_box_new(GTK_ORIENTATION_HORIZONTAL,5); 
-   gtk_container_add(GTK_CONTAINER(input_window),hbox);
-
-   entry=gtk_entry_new();
-   gtk_box_pack_start(GTK_BOX(hbox),entry,TRUE,TRUE,5);
-
-   buttonIA=gtk_toggle_button_new_with_label("IA On/Off");
-   gtk_box_pack_start(GTK_BOX(hbox),buttonIA,FALSE,FALSE,0);
-
    gtk_container_add(GTK_CONTAINER(window), draw_area);
 
-   //Asigno las acciones de los componentes
+   //creacion la ventana principal y sus propiedades
+   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+   gtk_window_set_default_size(GTK_WINDOW(window), WIDTH, HEIGHT); 
+   gtk_window_set_title(GTK_WINDOW(window), "Carnac");
 
+//========================= Ventana secundaria ==================================
+   input_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+
+   hbox = gtk_fixed_new();//gtk_box_new(GTK_ORIENTATION_HORIZONTAL,5); 
+   gtk_container_add(GTK_CONTAINER(input_window),hbox);
+
+   //--------------- Controles jugador blanco -----------------------------------
+   label_white = gtk_label_new("Jugador Blanco:");
+   gtk_label_set_justify(GTK_LABEL(label_white), GTK_JUSTIFY_LEFT);
+   gtk_fixed_put(GTK_FIXED(hbox), label_white, 0, 5);
+   gtk_label_set_width_chars (GTK_LABEL(label_white), 14);
+
+   entry_white = gtk_entry_new();
+   gtk_fixed_put(GTK_FIXED(hbox), entry_white, 115, 0);
+   gtk_entry_set_width_chars (GTK_ENTRY(entry_white), 5);
+
+   buttonIA_white = gtk_toggle_button_new_with_label("IA Blanco");
+   gtk_fixed_put(GTK_FIXED(hbox), buttonIA_white, 180, 0);
+   gtk_widget_set_size_request(buttonIA_white, 10, 10);
+
+   //--------------- Controles jugador rojo -------------------------------------
+   label_red = gtk_label_new("Jugador Rojo:");
+   gtk_label_set_justify(GTK_LABEL(label_red), GTK_JUSTIFY_LEFT);
+   gtk_fixed_put(GTK_FIXED(hbox), label_red,  0, 55);
+   gtk_label_set_width_chars (GTK_LABEL(label_red), 14);
+
+   entry_red = gtk_entry_new();
+   gtk_fixed_put(GTK_FIXED(hbox), entry_red, 115, 50);
+   gtk_entry_set_width_chars (GTK_ENTRY(entry_red), 5);
+
+
+   buttonIA_red = gtk_toggle_button_new_with_label("IA Rojo");
+   gtk_fixed_put(GTK_FIXED(hbox), buttonIA_red, 180, 50);
+   gtk_widget_set_size_request(buttonIA_red, 94, 10);
+
+   gtk_widget_set_sensitive(GTK_WIDGET(entry_red), FALSE); //Hago que el usuario no pueda intercatuar con el
+                                                   //Esto porque al inicio del juego comienzan los blancos
+
+   gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_red), FALSE); //Hago que el usuario no pueda intercatuar con el
+                                                   //Esto porque al inicio del juego comienzan los blancos
+
+   
+   //------------- Creacion la ventana secundaria y sus propiedades -------------
+   gtk_window_set_position(GTK_WINDOW(input_window), GTK_WIN_POS_NONE);
+   gtk_window_set_default_size(GTK_WINDOW(input_window), 280, 100); 
+   gtk_window_set_title(GTK_WINDOW(input_window), "Movimientos");
+
+
+   //Asigno las acciones de los componentes
    g_signal_connect(G_OBJECT(draw_area), "draw", 
       G_CALLBACK(on_draw_event), NULL); 
 
    g_signal_connect(window, "destroy",
       G_CALLBACK(gtk_main_quit), NULL);
 
-   g_signal_connect(G_OBJECT(buttonIA),"clicked",
-      G_CALLBACK(on_button_clicked),entry);
+   g_signal_connect(G_OBJECT(buttonIA_red),"clicked",
+      G_CALLBACK(on_button_clicked), "R");
+
+   g_signal_connect(G_OBJECT(buttonIA_white),"clicked",
+      G_CALLBACK(on_button_clicked), "B");
 
    g_signal_connect(input_window, "destroy",
       G_CALLBACK(gtk_main_quit), NULL);
 
-   g_signal_connect(G_OBJECT(entry),"activate",/* when you press ENTER */
+   g_signal_connect(G_OBJECT(entry_red),"activate",// when you press ENTER
       G_CALLBACK(on_entry_activate), window);
 
-   //creacion del tablero y sus propiedades
-   gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-   gtk_window_set_default_size(GTK_WINDOW(window), WIDTH, HEIGHT); 
-   gtk_window_set_title(GTK_WINDOW(window), "Carnac");
+   g_signal_connect(G_OBJECT(entry_white),"activate",// when you press ENTER
+      G_CALLBACK(on_entry_activate), window);
 
-   gtk_window_set_position(GTK_WINDOW(input_window), GTK_WIN_POS_NONE);
-   gtk_window_set_title(GTK_WINDOW(input_window), "Movimientos");
 
-   //input del tamano del tablero
+   //input del size del tablero
    int eleccion;
-   printf("Seleccione el tamano del tablero:"
+   printf("Seleccione el size del tablero:"
       "\n1)Vaticano\n2)Alemania (default) \n3)Siberia\n");
    scanf("%d", &eleccion);
 
-   tamano = eleccion;
+   size = eleccion;
 
    switch(eleccion)
    {
@@ -105,12 +156,16 @@ main(int argc, char *argv[])
       default:
          cells_in_x = 10;
          cells_in_y = 7;
-         tamano = 2;
+         size = 2;
    }
 
    board = create_board(board, cells_in_y, cells_in_x);
    red_score = malloc(2 * sizeof(char));
    white_score = malloc(2 * sizeof(char));
+
+   outputLog = calloc(1024, sizeof(char));
+   strcat(outputLog, "\0");
+   filename = malloc(100 * sizeof(char));
 
    strcpy(red_score, "0\0");
    strcpy(white_score, "0\0");
@@ -119,9 +174,40 @@ main(int argc, char *argv[])
    gtk_widget_show_all(input_window);
 
 
+
+   GtkWidget *dialog;
+     
+   dialog = gtk_file_chooser_dialog_new ("Open File",
+                                          NULL,
+                                          GTK_FILE_CHOOSER_ACTION_OPEN,
+                                          "Cancel",
+                                          GTK_RESPONSE_CANCEL,
+                                          "Open",
+                                          GTK_RESPONSE_ACCEPT,
+                                          NULL);
+     
+   if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+   {
+      char *temp;
+      GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
+      temp = gtk_file_chooser_get_filename (chooser);
+
+      strcpy(filename, temp);
+      load_game(filename, outputLog);
+      reload_board(board, window);
+      g_free(temp);
+   }
+
+   gtk_widget_destroy (dialog);
+   strcpy(filename, "../files/Bitac000.txt");
+
    gtk_main();
 
    free_board(board, cells_in_x, cells_in_y);
+   free(red_score);
+   free(white_score);
+   free(outputLog);
+   free(filename);
 
    return 0;
 
@@ -138,14 +224,9 @@ static gboolean on_draw_event(GtkWidget *widget, cairo_t *cr,
 }
 
 
-static void on_button_clicked(GtkToggleButton *button,gpointer data)
+static void on_button_clicked(GtkToggleButton *button, gpointer data)
 {
-   GtkWidget *entry=(GtkWidget *)data;
-   if (gtk_toggle_button_get_active(button))
-      gtk_widget_set_sensitive (entry, FALSE);
-   else
-      gtk_widget_set_sensitive (entry, TRUE);
-
+   char *player = data;
 }
 
 static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
@@ -154,17 +235,51 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
    g_printf("%s\n",gtk_entry_get_text(GTK_ENTRY(entry)));
    char *inst = (char *) gtk_entry_get_text(GTK_ENTRY(entry));
 
-   exit_message = set_Stone(board, inst, tamano);
-   *red_score = count_Dolmen(board, cells_in_x, cells_in_y, 'R', 'R') + '0';
-   *white_score = count_Dolmen(board, cells_in_x, cells_in_y, 'B', 'R') + '0';
 
-   stock--;
+   GtkWidget *error;
+   char *message = (char *) malloc(100 * sizeof(char));
+
+   //El jugador debe botar la pieza
+   if(last_piece_x>=0)
+   {
+      stock++;
+      turn--; //Disminuyo el turno para que siga en el mismo turno
+
+      switch(exit_message = takeDown_Stone(board, inst, size, &last_piece_x, &last_piece_y))
+      {
+         case -2://El jugador decidio no botarlo
+            strcpy(message, "El jugador decidio no botar la pieza, pierde el turno");
+            turn++;
+            break;
+         case -1://No es posible botarlo en esa direccion
+            strcpy(message, "No es posible botar la pieza en esa direccion, escoga otra direccion o pase el turno.");
+            break;
+         case 0://Direccion no valida
+            strcpy(message, "La direccion no es valida, indique una direccion valida, o pase el turno");
+            break;
+         case 1://Botado satisfactorio
+            goto next;
+      }
+
+      error = gtk_message_dialog_new(GTK_WINDOW(widget),
+            GTK_DIALOG_MODAL,
+            GTK_MESSAGE_WARNING,
+            GTK_BUTTONS_OK,
+            message); 
+      gtk_dialog_run(GTK_DIALOG (error) );
+      gtk_widget_destroy(error);
+
+      goto next;
+   }
+
+   exit_message = set_Stone(board, inst, size, &last_piece_x, &last_piece_y);
 
    if (exit_message!=1)
    {
-      GtkWidget *error;
-      char *message = (char *) malloc(82 * sizeof(char));
       stock++;
+      turn++;
+      last_piece_x=-1;
+      last_piece_y=-1;
 
       switch(exit_message)
       {
@@ -189,27 +304,38 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
             message); 
       gtk_dialog_run(GTK_DIALOG (error) );
       gtk_widget_destroy(error);
+      free(message);
    }
 
-   gtk_entry_set_text (GTK_ENTRY(entry), "");
+   strcat(outputLog, inst);
+   strcat(outputLog, "\n");
+   save_game(filename, outputLog);
+   new_filename(filename, ++num_output);
 
+next:
+   //Actualizo los puntajes
+   *red_score = count_Dolmen(board, cells_in_x, cells_in_y, 'R', 'R') + '0';
+   *white_score = count_Dolmen(board, cells_in_x, cells_in_y, 'B', 'R') + '0';
+
+   stock--;
+
+   gtk_entry_set_text (GTK_ENTRY(entry), "");
    gtk_widget_queue_draw(widget);
 
    if(!stock)
    {
       GtkWidget *win;
-      char *win_message = (char *) malloc(100 * sizeof(char));
       int result_red = *red_score - '0';
       int result_white = *white_score - '0';
 
       //Gana el rojo
       if (result_red > result_white)
       {
-         strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador rojo, por mayor cantidad de dolmens");
+         strcpy(message, "Fin de la partida!\nEl Ganador es el jugador rojo, por mayor cantidad de dolmens");
       }
       //Gana el blanco
       if (result_red < result_white)
-         strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador blanco, por mayor cantidad de dolmens");
+         strcpy(message, "Fin de la partida!\nEl Ganador es el jugador blanco, por mayor cantidad de dolmens");
       //Quedan empates
       if (result_red == result_white)
       {
@@ -222,29 +348,69 @@ static void on_entry_activate(GtkEntry *entry, GtkWidget *widget)
          //Gana el rojo
          if (result_red>result_white)
          {
-            strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador rojo, por dolmen mas grande: ");
-            strcat(win_message, red_score);
+            strcpy(message, "Fin de la partida!\nEl Ganador es el jugador rojo, por dolmen mas grande: ");
+            strcat(message, red_score);
          }
          //Gana el blanco
          if (result_red < result_white)
          {
-            strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador blanco, por dolmen mas grande: ");
-            strcat(win_message, white_score);
+            strcpy(message, "Fin de la partida!\nEl Ganador es el jugador blanco, por dolmen mas grande: ");
+            strcat(message, white_score);
          }
          //Volvieron a quedar empates
          if (result_red == result_white)
-            strcpy(win_message, "Fin de la partida!\nEl Ganador es el jugador rojo, por mandato divino de Lord Kirstein");
+            strcpy(message, "Fin de la partida!\nEl Ganador es el jugador rojo, por mandato divino de Lord Kirstein");
 
       }
+
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_red), FALSE);
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_white), FALSE);
+
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_red), FALSE);
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_white), FALSE); 
 
       win = gtk_message_dialog_new(GTK_WINDOW(widget),
             GTK_DIALOG_MODAL,
             GTK_MESSAGE_WARNING,
             GTK_BUTTONS_OK,
-            win_message); 
+            message); 
       gtk_dialog_run(GTK_DIALOG (win) );
       gtk_widget_destroy(win);
+      free(message);
    }
+
+   turn = ++turn%2;
+   if(turn%2) //Turno actual del jugador blanco, cambiar a turno de jugador rojo
+   {
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_red), TRUE);
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_white), FALSE);
+
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_red), TRUE);
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_white), FALSE);      
+   }
+   else
+   {
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_red), FALSE);
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_white), TRUE);
+
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_red), FALSE);
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_white), TRUE); 
+   }
+
+   if(last_piece_x>=0 && verif_TakeDown(board, size, &last_piece_x, &last_piece_y))
+   {
+      //Aviso al siguiente jugador que debe botar la ultima pieza
+      strcpy(message, "Debe botar la ultima pieza, de lo contrario perdera el turno.");
+         error = gtk_message_dialog_new(GTK_WINDOW(widget),
+               GTK_DIALOG_MODAL,
+               GTK_MESSAGE_WARNING,
+               GTK_BUTTONS_OK,
+               message); 
+         gtk_dialog_run(GTK_DIALOG (error) );
+         gtk_widget_destroy(error);
+   }
+
+      
 }
 
 static void draw_board(cairo_t *cr)
@@ -252,7 +418,7 @@ static void draw_board(cairo_t *cr)
    //Desplazamiento en el arreglo de coordenadas
    int desp_x = 0;
    int desp_y = 0;
-   switch (tamano)
+   switch (size)
    {
       case 1:
          desp_x = 3;
@@ -287,7 +453,7 @@ static void draw_board(cairo_t *cr)
    cairo_set_source_rgb(cr, 0, 0, 0);
    cairo_set_line_width(cr, 1);
 
-   //tamano de cada celda del tablero
+   //size de cada celda del tablero
    double size_cell_x = (WIDTH-100)/cells_in_x;
    double size_cell_y = (HEIGHT-200)/cells_in_y;
 
@@ -421,11 +587,13 @@ static void draw_pieces(cairo_t *cr)
             cairo_stroke(cr);
 
             //###################################################
-            //Dibujo las lineas este y oeste, las cuales son de
-            //color opuesto a las del norte y sur
+            //Dibujo las lineas sur, este y oeste
             //###################################################
 
-            cairo_set_source_rgb(cr, 0, 0, 0);
+            if(last_piece_x==j && last_piece_y==i)
+               cairo_set_source_rgb(cr, 0, 0, 1);
+            else
+               cairo_set_source_rgb(cr, 0, 0, 0);
 
             //Dibujo la linea de abajo del color superior
             dest_y = origin_y + (size_cell_y*(i+1)) - 10;
@@ -493,3 +661,43 @@ static void draw_score(cairo_t *cr)
 
 }
 
+static void reload_board(char ***board, GtkWidget *widget)
+{
+   int desp;
+   for (desp = 0; *(outputLog+desp); desp+=5)
+   {
+      set_Stone(board, (outputLog+desp), size, &last_piece_x, &last_piece_y);
+
+      if(last_piece_x>9 || last_piece_x>9)
+         desp++;
+      
+      turn++;
+      stock--;
+      num_output++;
+   }
+
+   new_filename(filename, num_output);
+
+   //Actualizo los puntajes
+   *red_score = count_Dolmen(board, cells_in_x, cells_in_y, 'R', 'R') + '0';
+   *white_score = count_Dolmen(board, cells_in_x, cells_in_y, 'B', 'R') + '0';
+
+   gtk_widget_queue_draw(widget);
+
+   if(turn%2) //Turno actual del jugador blanco, cambiar a turno de jugador rojo
+   {
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_red), TRUE);
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_white), FALSE);
+
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_red), TRUE);
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_white), FALSE);      
+   }
+   else
+   {
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_red), FALSE);
+      gtk_widget_set_sensitive(GTK_WIDGET(entry_white), TRUE);
+
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_red), FALSE);
+      gtk_widget_set_sensitive(GTK_WIDGET(buttonIA_white), TRUE); 
+   }
+}

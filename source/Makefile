@@ -1,6 +1,6 @@
 CC = gcc
 LIBS = -lallegro
-OBJS = Window.c board.c
+OBJS = carnac-Bosques-Esteban.c board.c file.c
 OUT = carnac
 
 compile: $(OBJS)
